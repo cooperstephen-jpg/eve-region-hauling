@@ -12,7 +12,7 @@ name: Refresh market data
 # run that workflow manually) before this one can succeed.
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch: {}
 
 permissions:
@@ -67,5 +67,9 @@ jobs:
             echo "No data changes."
             exit 0
           fi
-          git commit -m "chore(data): refresh region order snapshots"
-          git push
+          # Amend the tip commit instead of piling up a new one every run.
+          # At 15-minute intervals that would be 96 commits/day forever;
+          # amending keeps exactly one "current data" commit at all times,
+          # so history never grows from these refreshes.
+          git commit --amend -m "chore(data): refresh region order snapshots"
+          git push --force
