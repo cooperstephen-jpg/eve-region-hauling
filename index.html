@@ -1,0 +1,70 @@
+<!-- index.html -->
+
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+
+  <link rel="icon" type="image/svg+xml" href="/eve-region-hauling/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="description" content="Find profitable region-to-region hauling routes in EVE Online." />
+  <!-- Reduce caching of the HTML shell to avoid stale chunk references on GH Pages -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>EVE Region Hauling</title>
+
+  <!-- Cache-busting: if a new build is deployed (version.txt changes), do a plain reload without changing the URL -->
+  <script>
+    (function () {
+      function getRepoBase() {
+        var parts = window.location.pathname.split('/').filter(Boolean);
+        var repo = parts.length ? parts[0] : '';
+        return repo ? ('/' + repo + '/') : '/';
+      }
+      try {
+        var stored = sessionStorage.getItem('spa:version') || '';
+        var verUrl = getRepoBase() + 'version.txt?ts=' + Date.now();
+        fetch(verUrl, { cache: 'no-store' })
+          .then(function (r) { if (!r.ok) throw new Error('no version'); return r.text(); })
+          .then(function (t) {
+            var latest = (t || '').trim();
+            if (!stored) {
+              try { sessionStorage.setItem('spa:version', latest); } catch { }
+              return;
+            }
+            if (latest && latest !== stored) {
+              try { sessionStorage.setItem('spa:version', latest); } catch { }
+              window.location.reload();
+            }
+          })
+          .catch(function () { /* ignore in dev/first load */ });
+      } catch (e) { /* noop */ }
+    })();
+  </script>
+  <!-- If a dynamic import fails due to a stale chunk, do a one-time hard reload -->
+  <script>
+    (function () {
+      window.addEventListener('error', function (e) {
+        const msg = String(e?.message || '');
+        const targetSrc = e?.target && (e.target.src || e.target.href);
+        const looksLikeChunk = targetSrc && /\/assets\//.test(targetSrc);
+        const already = sessionStorage.getItem('spa:reloaded');
+        if (!already && (msg.includes('dynamically imported module') || looksLikeChunk)) {
+          try { sessionStorage.setItem('spa:reloaded', '1'); } catch { }
+          window.location.reload();
+        }
+      }, true);
+    })();
+  </script>
+  <script type="module" crossorigin src="/eve-region-hauling/assets/index-Dk0EV8kq.js"></script>
+  <link rel="stylesheet" crossorigin href="/eve-region-hauling/assets/index-_oYcnhQb.css">
+</head>
+
+<body>
+  <div id="root"></div>
+</body>
+
+</html>
