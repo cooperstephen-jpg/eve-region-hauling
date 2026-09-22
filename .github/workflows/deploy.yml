@@ -1,0 +1,40 @@
+name: Deploy site
+
+# Builds the React app and publishes it to the gh-pages branch.
+# Runs on every push to main, and can be triggered manually.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # Stamp a version file so open tabs auto-reload onto the new build.
+      - run: date -u +%Y%m%d%H%M%S > dist/version.txt
+
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          # Preserve the region_orders/ snapshots that the data-refresh workflow
+          # maintains directly on gh-pages — a code deploy must not wipe them out.
+          keep_files: true

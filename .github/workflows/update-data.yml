@@ -1,0 +1,68 @@
+name: Refresh market data
+
+# Pulls fresh order books from EVE's ESI API for the 5 trade hub regions and
+# commits the computed snapshots straight to the gh-pages branch, under
+# data/region_orders/<regionId>.json. This is the same "git as a free CDN"
+# trick the original site used, just driven by a schedule instead of Azure
+# Functions, so no external service or credentials are required beyond the
+# repo's own built-in GITHUB_TOKEN.
+#
+# NOTE: this workflow needs the gh-pages branch to already exist, which
+# happens the first time the "Deploy site" workflow runs. Push to main (or
+# run that workflow manually) before this one can succeed.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+env:
+  # The Forge (Jita), Domain (Amarr), Sinq Laison (Dodixie), Heimatar (Rens), Metropolis (Hek)
+  REGIONS: 10000002,10000043,10000032,10000030,10000042
+  CONCURRENCY: 3
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main (for the generator script)
+        uses: actions/checkout@v4
+        with:
+          path: main
+          fetch-depth: 1
+
+      - name: Checkout gh-pages (published data lives here)
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate region order snapshots
+        working-directory: main
+        env:
+          OUTPUT_DIR: ../gh-pages/data/region_orders
+        run: node scripts/generate-region-orders.cjs
+
+      - name: Commit and push updated snapshots
+        working-directory: gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/region_orders
+          if git diff --cached --quiet; then
+            echo "No data changes."
+            exit 0
+          fi
+          git commit -m "chore(data): refresh region order snapshots"
+          git push
