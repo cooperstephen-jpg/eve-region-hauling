@@ -1,18 +1,18 @@
 name: Refresh market data
 
-# Pulls fresh order books from EVE's ESI API for the 5 trade hub regions and
-# commits the computed snapshots straight to the gh-pages branch, under
-# data/region_orders/<regionId>.json. This is the same "git as a free CDN"
-# trick the original site used, just driven by a schedule instead of Azure
-# Functions, so no external service or credentials are required beyond the
-# repo's own built-in GITHUB_TOKEN.
+# Pulls fresh order books from EVE's ESI API for every region in
+# public/data/regions.json and commits the computed snapshots straight to
+# the gh-pages branch, under data/region_orders/<regionId>.json. This is the
+# same "git as a free CDN" trick the original site used, just driven by a
+# schedule instead of Azure Functions, so no external service or
+# credentials are required beyond the repo's own built-in GITHUB_TOKEN.
 #
 # NOTE: this workflow needs the gh-pages branch to already exist, which
 # happens the first time the "Deploy site" workflow runs. Push to main (or
 # run that workflow manually) before this one can succeed.
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 * * * *'
   workflow_dispatch: {}
 
 permissions:
@@ -23,13 +23,16 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # The Forge (Jita), Domain (Amarr), Sinq Laison (Dodixie), Heimatar (Rens), Metropolis (Hek)
-  REGIONS: 10000002,10000043,10000032,10000030,10000042
+  # REGIONS is intentionally unset: the script falls back to every region
+  # listed in public/data/regions.json. Set REGIONS to a comma-separated
+  # list of region IDs here to restrict it again (e.g. just the 5 hubs).
+  REGION_CONCURRENCY: 4
   CONCURRENCY: 3
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     steps:
       - name: Checkout main (for the generator script)
         uses: actions/checkout@v4

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Generate per-region best quotes snapshots from ESI and write to public/data/region_orders/[regionId].json
 // Env:
-//   REGIONS: comma-separated region IDs (default hubs)
+//   REGIONS: comma-separated region IDs. If unset, every region listed in
+//            public/data/regions.json is used (i.e. "all regions").
+//   REGION_CONCURRENCY: how many regions to process in parallel (default 3)
 //   CONCURRENCY: parallel page fetches per region (default 2)
 //   PAGES_LIMIT: optional cap on pages per region (for testing)
 
@@ -92,6 +94,19 @@ async function generateForRegion(regionId, concurrency, pagesLimit) {
     };
 }
 
+// PLEX has its own region (19000001) but no real order book / snapshot support.
+const PLEX_REGION_ID = 19000001;
+
+async function loadAllKnownRegionIds(repoRoot) {
+    const regionsPath = path.join(repoRoot, 'public', 'data', 'regions.json');
+    const raw = await fsp.readFile(regionsPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.regions) ? parsed.regions : []);
+    return list
+        .map(r => Number(r.regionID ?? r.region_id ?? r.id))
+        .filter(id => Number.isFinite(id) && id !== PLEX_REGION_ID);
+}
+
 async function main() {
     const repoRoot = process.cwd();
     // OUTPUT_DIR lets CI point this at a gh-pages checkout's data/region_orders
@@ -101,21 +116,31 @@ async function main() {
         : path.join(repoRoot, 'public', 'data', 'region_orders');
     await fsp.mkdir(outDir, { recursive: true });
 
-    const defaultRegions = [10000002, 10000043, 10000032, 10000030, 10000042];
-    const regions = (process.env.REGIONS || defaultRegions.join(',')).split(',').map(s => Number(s.trim())).filter(Boolean);
+    const regions = process.env.REGIONS
+        ? process.env.REGIONS.split(',').map(s => Number(s.trim())).filter(Boolean)
+        : await loadAllKnownRegionIds(repoRoot);
     const concurrency = Math.max(1, Number(process.env.CONCURRENCY || 2));
+    const regionConcurrency = Math.max(1, Number(process.env.REGION_CONCURRENCY || 3));
     const pagesLimit = process.env.PAGES_LIMIT ? Number(process.env.PAGES_LIMIT) : null;
 
-    for (const region of regions) {
-        try {
-            const snapshot = await generateForRegion(region, concurrency, pagesLimit);
-            const outPath = path.join(outDir, `${region}.json`);
-            await fsp.writeFile(outPath, JSON.stringify(snapshot));
-            console.log(`Wrote ${path.relative(repoRoot, outPath)} with ${Object.keys(snapshot.best_quotes).length} types.`);
-        } catch (e) {
-            console.error(`Failed region ${region}:`, e.message);
+    console.log(`Processing ${regions.length} region(s) with region-concurrency=${regionConcurrency}, page-concurrency=${concurrency}.`);
+
+    let nextIdx = 0;
+    async function regionWorker() {
+        while (nextIdx < regions.length) {
+            const region = regions[nextIdx++];
+            try {
+                const snapshot = await generateForRegion(region, concurrency, pagesLimit);
+                const outPath = path.join(outDir, `${region}.json`);
+                await fsp.writeFile(outPath, JSON.stringify(snapshot));
+                console.log(`Wrote ${path.relative(repoRoot, outPath)} with ${Object.keys(snapshot.best_quotes).length} types.`);
+            } catch (e) {
+                console.error(`Failed region ${region}:`, e.message);
+            }
         }
     }
+    const workers = Array.from({ length: Math.min(regionConcurrency, regions.length) }, () => regionWorker());
+    await Promise.all(workers);
 }
 
 main().catch(err => {
