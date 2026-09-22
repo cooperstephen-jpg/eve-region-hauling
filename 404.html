@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>EVE Region Hauling - Page Not Found</title>
+    <script>
+        // SPA redirect script for GitHub Pages with BrowserRouter
+        (function () {
+            // Detect the repo name from the path (supports prod and dev repos)
+            var l = window.location;
+            var parts = l.pathname.split('/').filter(Boolean);
+            var repoName = parts.length ? parts[0] : 'EVE-Data-Site';
+
+            // Save the remaining path after the repo segment for app to restore
+            var remainingPath = l.pathname.substring(('/' + repoName + '/').length);
+            if (remainingPath && remainingPath !== '/') {
+                sessionStorage.setItem('spa:path', '/' + remainingPath.replace(/^\/+/, ''));
+                // Mark that we're coming from 404 so index.html can avoid extra cache-bust reload once
+                try { sessionStorage.setItem('spa:from404', '1'); } catch (e) { }
+            }
+
+            // Redirect to repo root so index.html can boot and restore route
+            var redirectUrl = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/' + repoName + '/';
+            window.location.replace(redirectUrl);
+        })();
+    </script>
+</head>
+
+<body>
+    <h1>Redirecting...</h1>
+    <p>If you are not redirected automatically, <a id="repo-link" href="/">click here</a>.</p>
+    <script>
+        (function () {
+            var l = window.location;
+            var parts = l.pathname.split('/').filter(Boolean);
+            var repoName = parts.length ? parts[0] : '';
+            if (repoName) {
+                var a = document.getElementById('repo-link');
+                a.href = '/' + repoName + '/';
+            }
+        })();
+    </script>
+</body>
+
+</html>
