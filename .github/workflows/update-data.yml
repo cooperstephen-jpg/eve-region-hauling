@@ -12,7 +12,7 @@ name: Refresh market data
 # run that workflow manually) before this one can succeed.
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
 permissions:
